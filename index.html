@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#131b22">
+<title>Схема лейб</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#131b22; --panel:#1b252e; --line:#33434f; --ink:#f1f5f8; --dim:#8da1ae;
+  --a:#8fd0ff; --b:#ffd27a; --key:#222e38; --keyOn:#2d3b47;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+body{background:var(--bg);color:var(--ink);font-family:Rubik,system-ui,-apple-system,sans-serif;
+  -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+.num{font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700}
+
+#app{height:100%;display:flex;flex-direction:column;
+  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.screen{flex:1;min-height:0;display:none;flex-direction:column}
+.screen.on{display:flex}
+
+/* ---------- Схема ---------- */
+#board{flex:1;min-height:0;margin:10px;border:2px solid var(--line);border-radius:14px;
+  display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bg)}
+.cols{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0;color:var(--a)}
+.col.B{color:var(--b);border-left:2px solid var(--line)}
+.head{height:20%;min-height:44px;container-type:size;display:flex;align-items:center;justify-content:center}
+.circ{width:86cqh;height:86cqh;border:max(3px,5cqh) solid currentColor;border-radius:50%;
+  display:grid;place-items:center;font-size:60cqh;line-height:1}
+.rows{flex:1;min-height:0;display:flex;flex-direction:column}
+.row{flex:1;min-height:0;border-top:2px solid var(--line);container-type:size;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0}
+.nums{white-space:nowrap;color:var(--ink);font-size:min(36cqh,21cqw);line-height:.95;text-align:center;letter-spacing:.01em}
+.row.n2 .nums{font-size:min(25cqh,16cqw)}
+.row.n3 .nums{font-size:min(17cqh,12cqw)}
+.row .arrow{width:80cqw;height:20cqh;min-height:14px;margin-top:5cqh}
+
+.arrow{display:flex;align-items:center;color:inherit}
+.arrow i{flex:1;height:46%;background:currentColor;border-radius:4px 0 0 4px}
+.arrow.l{flex-direction:row-reverse}
+.arrow.l i{border-radius:0 4px 4px 0}
+.arrow svg{height:100%;aspect-ratio:1.05;fill:currentColor;flex:none;margin-left:-1px}
+.arrow.l svg{margin-left:0;margin-right:-1px}
+
+.empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--dim);padding:24px;font-size:18px;line-height:1.5}
+
+#rotOff{display:none;position:absolute;top:10px;right:10px;z-index:2;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:15px;color:var(--dim)}
+body.rot #board{position:fixed;top:0;margin:0;border-radius:0;border:0;z-index:10;
+  transform:rotate(90deg);transform-origin:0 0;padding:12px}
+body.rot #rotOff{display:block}
+
+.bar{display:flex;gap:10px;padding:0 10px 10px}
+.btn{flex:1;min-height:58px;border-radius:14px;font-size:18px;font-weight:500;background:var(--panel);border:1px solid var(--line)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.35}
+@media (orientation:landscape){
+  #btnRot{display:none}
+  .bar{padding:0 10px 8px}
+  .bar .btn{min-height:44px;flex:0 0 200px;margin-left:auto}
+}
+
+/* ---------- Мастер ---------- */
+#wiz{overflow:auto;padding:10px 14px 14px;gap:12px}
+.wtop{display:flex;align-items:center;justify-content:space-between;min-height:48px}
+.wtop .ghost{color:var(--dim);font-size:17px;padding:10px 4px}
+.side{display:flex;align-items:center;gap:12px;font-size:17px;color:var(--dim)}
+.side .circ{width:52px;height:52px;border-width:4px;font-size:34px;color:var(--a)}
+.side.B .circ{color:var(--b)}
+.done{display:flex;flex-wrap:wrap;gap:8px;min-height:0}
+.chip{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:10px;padding:6px 10px;font-size:20px}
+.chip .arrow{width:34px;height:16px;color:var(--a)}
+.side.B ~ * .chip .arrow, #wiz.B .chip .arrow{color:var(--b)}
+.q{margin:6px 0 0;font-size:22px;font-weight:500}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:180px;max-height:320px}
+.pick button{background:var(--panel);border:2px solid var(--line);border-radius:18px;display:grid;place-items:center;color:var(--a)}
+#wiz.B .pick button{color:var(--b)}
+.pick .arrow{width:78%;height:70px}
+.pick button:active{background:var(--keyOn)}
+
+.cur{display:flex;align-items:center;gap:14px;background:var(--panel);border-radius:16px;padding:10px 14px;border:2px solid var(--line)}
+.cur .arrow{width:84px;height:34px;color:var(--a);flex:none}
+#wiz.B .cur .arrow{color:var(--b)}
+.cur button{display:flex;align-items:center}
+#disp{flex:1;text-align:right;font-size:46px;min-height:52px;line-height:52px;overflow:hidden;white-space:nowrap;text-overflow:clip}
+#disp.ph{color:var(--dim);font-family:Rubik,sans-serif;font-weight:400;font-size:18px}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pad button{min-height:58px;border-radius:12px;background:var(--key);font-size:30px}
+.pad button:active{background:var(--keyOn)}
+.pad .wide{grid-column:span 4}
+.pad .fn{color:var(--dim);font-size:26px}
+.acts{display:flex;gap:10px}
+.mode{display:grid;grid-template-columns:1fr 1fr;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.mode button{min-height:46px;border-radius:9px;font-size:20px;color:var(--dim)}
+.mode button.on{background:var(--ink);color:var(--bg);font-weight:600}
+#txt{flex:1;min-width:0;background:none;border:0;color:var(--ink);font-size:40px;text-align:right;outline:none;text-transform:uppercase;padding:0;letter-spacing:.02em}
+#txt::placeholder{color:var(--dim);font-family:Rubik,sans-serif;font-weight:400;font-size:18px;text-transform:none;letter-spacing:0}
+.hint{color:var(--dim);font-size:15px;margin:0}
+.nums.grid{display:grid;grid-template-columns:auto auto;column-gap:6cqw;row-gap:1cqh;justify-content:center}
+.row.a1 .nums{font-size:min(36cqh,20cqw)}
+.row.a2 .nums{font-size:min(25cqh,20cqw)}
+.row.a4 .nums{font-size:min(24cqh,12.5cqw)}
+.row.a6 .nums{font-size:min(16cqh,12.5cqw)}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <section id="view" class="screen on">
+    <div id="board"></div>
+    <div class="bar">
+      <button id="btnRot" class="btn">Горизонтально</button>
+      <button id="btnNew" class="btn primary">Новая</button>
+    </div>
+  </section>
+
+  <section id="wiz" class="screen">
+    <div class="wtop">
+      <button id="wCancel" class="ghost">Отмена</button>
+      <div id="wSide" class="side"><span>Конец</span><span class="circ num">A</span></div>
+    </div>
+    <div id="wDone" class="done"></div>
+
+    <div id="stepArrow" style="display:flex;flex-direction:column;gap:12px;flex:1">
+      <p class="q">Куда стрелка?</p>
+      <div class="pick">
+        <button data-d="l" aria-label="Влево"></button>
+        <button data-d="r" aria-label="Вправо"></button>
+      </div>
+    </div>
+
+    <div id="stepRange" style="display:none;flex-direction:column;gap:12px">
+      <div class="mode" id="mode">
+        <button data-m="n" class="on">123</button>
+        <button data-m="a">ABC</button>
+      </div>
+      <div class="cur">
+        <button id="chgDir" aria-label="Сменить стрелку"></button>
+        <div id="disp" class="num"></div>
+        <input id="txt" class="num" type="text" style="display:none" autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false" enterkeyhint="done" placeholder="например LFSPI, FC">
+      </div>
+      <p class="hint" id="hint" style="display:none">Через запятую или пробел, до 6 штук</p>
+      <div class="pad" id="pad"></div>
+      <div class="acts">
+        <button id="bMore" class="btn">Ещё ряд</button>
+        <button id="bEnough" class="btn primary">Хватит</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var KEY = 'labelScheme.v1';
+  var saved = load();
+  var draft = null, side = 'A', dir = null, buf = '', abuf = '', mode = 'n', rot = false;
+  var $ = function(id){ return document.getElementById(id); };
+
+  function load(){ try{ var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
+  function store(d){ try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){} }
+
+  function arrow(d){
+    var pts = d === 'r' ? '0,0 10,5 0,10' : '10,0 0,5 10,10';
+    return '<span class="arrow ' + d + '"><i></i><svg viewBox="0 0 10 10" preserveAspectRatio="none"><polygon points="' + pts + '"/></svg></span>';
+  }
+  function items(row){
+    if (row.t === 'a') return row.r.split(',').filter(Boolean);
+    return parts(row.r);
+  }
+  function parts(r){
+    return r.split(',').map(function(s){ return s.trim(); }).filter(Boolean)
+            .map(function(s){ return s.replace(/-/g, '–'); });
+  }
+
+  /* ---------- Схема ---------- */
+  function renderBoard(){
+    var b = $('board');
+    if (!saved){
+      b.innerHTML = '<div class="empty">Схемы пока нет.<br>Нажмите «Новая».</div>';
+      return;
+    }
+    var html = '<button id="rotOff">Обычно</button><div class="cols">';
+    ['A','B'].forEach(function(s){
+      html += '<div class="col ' + s + '"><div class="head"><span class="circ num">' + s + '</span></div><div class="rows">';
+      (saved[s] || []).forEach(function(row){
+        var p = items(row), n, inner;
+        if (row.t === 'a'){
+          n = p.length <= 1 ? 'a1' : p.length === 2 ? 'a2' : p.length <= 4 ? 'a4' : 'a6';
+          inner = p.length >= 3
+            ? '<div class="nums num grid">' + p.map(function(x){ return '<span>' + x + '</span>'; }).join('') + '</div>'
+            : '<div class="nums num">' + p.join('<br>') + '</div>';
+        } else {
+          n = p.length >= 3 ? 'n3' : (p.length === 2 ? 'n2' : '');
+          inner = '<div class="nums num">' + p.join('<br>') + '</div>';
+        }
+        html += '<div class="row ' + n + '">' + inner + arrow(row.d) + '</div>';
+      });
+      html += '</div></div>';
+    });
+    html += '</div>';
+    b.innerHTML = html;
+    $('rotOff').onclick = function(){ rot = false; applyRot(); };
+  }
+
+  /* Автоподгонка: для каждого ряда — самый крупный шрифт, который помещается */
+  function fitAll(){
+    document.querySelectorAll('#board .row').forEach(function(row){
+      var nums = row.querySelector('.nums'), arr = row.querySelector('.arrow');
+      if (!nums) return;
+      var arrH = arr ? arr.offsetHeight + (parseFloat(getComputedStyle(arr).marginTop) || 0) : 0;
+      var maxW = row.clientWidth * 0.9;
+      var maxH = row.clientHeight * 0.9 - arrH;
+      if (maxW <= 0 || maxH <= 0) return;
+      var lo = 6, hi = 700;
+      for (var i = 0; i < 14; i++){
+        var mid = (lo + hi) / 2;
+        nums.style.fontSize = mid + 'px';
+        if (nums.offsetWidth <= maxW && nums.offsetHeight <= maxH) lo = mid; else hi = mid;
+      }
+      nums.style.fontSize = Math.floor(lo) + 'px';
+    });
+  }
+
+  function applyRot(){
+    var b = $('board');
+    var on = rot && window.innerWidth < window.innerHeight && !!saved;
+    document.body.classList.toggle('rot', on);
+    if (on){
+      b.style.width = window.innerHeight + 'px';
+      b.style.height = window.innerWidth + 'px';
+      b.style.left = window.innerWidth + 'px';
+    } else {
+      b.style.width = b.style.height = b.style.left = '';
+    }
+    fitAll();
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
+  window.addEventListener('resize', applyRot);
+  window.addEventListener('orientationchange', function(){ setTimeout(applyRot, 200); });
+
+  function showView(){
+    $('wiz').classList.remove('on');
+    $('view').classList.add('on');
+    renderBoard(); applyRot();
+    $('btnRot').disabled = !saved;
+  }
+
+  $('btnRot').onclick = function(){ rot = true; applyRot(); };
+  $('btnNew').onclick = function(){
+    draft = { A: [], B: [] }; side = 'A'; mode = 'n';
+    $('view').classList.remove('on');
+    $('wiz').classList.add('on');
+    startRow();
+  };
+  $('wCancel').onclick = showView;
+
+  /* ---------- Мастер ---------- */
+  document.querySelectorAll('.pick button').forEach(function(btn){
+    btn.innerHTML = arrow(btn.dataset.d);
+    btn.onclick = function(){ dir = btn.dataset.d; buf = ''; showRange(); };
+  });
+
+  function setSide(){
+    var w = $('wiz'), s = $('wSide');
+    w.classList.toggle('B', side === 'B');
+    s.className = 'side ' + side;
+    s.querySelector('.circ').textContent = side;
+    var d = draft[side];
+    $('wDone').innerHTML = d.map(function(r){
+      return '<span class="chip num">' + arrow(r.d) + items(r).join(', ') + '</span>';
+    }).join('');
+    $('bEnough').textContent = side === 'A' ? 'Хватит → B' : 'Хватит, показать';
+  }
+
+  function startRow(){
+    dir = null; buf = ''; abuf = ''; $('txt').value = '';
+    setSide();
+    $('stepRange').style.display = 'none';
+    $('stepArrow').style.display = 'flex';
+    $('wiz').scrollTop = 0;
+  }
+
+  function showRange(){
+    $('stepArrow').style.display = 'none';
+    $('stepRange').style.display = 'flex';
+    $('chgDir').innerHTML = arrow(dir);
+    setMode(mode);
+  }
+
+  function setMode(m){
+    mode = m;
+    document.querySelectorAll('#mode button').forEach(function(b){ b.classList.toggle('on', b.dataset.m === m); });
+    var a = m === 'a';
+    $('disp').style.display = a ? 'none' : '';
+    $('pad').style.display = a ? 'none' : '';
+    $('txt').style.display = a ? '' : 'none';
+    $('hint').style.display = a ? '' : 'none';
+    if (a){ $('txt').value = abuf; $('txt').focus(); } else { $('txt').blur(); }
+    updDisp();
+  }
+  document.querySelectorAll('#mode button').forEach(function(b){
+    b.onclick = function(){ setMode(b.dataset.m); };
+  });
+
+  $('txt').addEventListener('input', function(){
+    var v = this.value.toUpperCase()
+      .replace(/[^A-Z,\- ]/g, '')
+      .replace(/\s*,\s*|\s+/g, ',')
+      .replace(/,{2,}/g, ',')
+      .replace(/^,/, '');
+    var arr = v.split(',');
+    if (arr.length > 6) v = arr.slice(0, 6).join(',');
+    this.value = v; abuf = v;
+    updDisp();
+  });
+  $('txt').addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ e.preventDefault(); this.blur(); }
+  });
+  $('chgDir').onclick = function(){ dir = dir === 'r' ? 'l' : 'r'; $('chgDir').innerHTML = arrow(dir); };
+
+  var VALID = /^\d+(-\d+)?(,\d+(-\d+)?)*$/;
+  var AVALID = /^[A-Z](?:[A-Z-]*[A-Z])?(?:,[A-Z](?:[A-Z-]*[A-Z])?){0,5}$/;
+  function updDisp(){
+    var d = $('disp');
+    if (!buf){ d.textContent = 'например 1–32'; d.classList.add('ph'); }
+    else { d.textContent = buf.replace(/-/g, '–').replace(/,/g, ', '); d.classList.remove('ph'); }
+    var ok = mode === 'a' ? AVALID.test(abuf) : VALID.test(buf);
+    $('bMore').disabled = !ok; $('bEnough').disabled = !ok;
+  }
+
+  var keys = ['1','2','3','⌫','4','5','6','-','7','8','9',',','0'];
+  var pad = $('pad');
+  keys.forEach(function(k){
+    var b = document.createElement('button');
+    b.className = 'num' + (k === '0' ? ' wide' : '') + ('⌫-,'.indexOf(k) >= 0 ? ' fn' : '');
+    b.textContent = k === '-' ? '–' : k;
+    b.onclick = function(){ press(k); };
+    pad.appendChild(b);
+  });
+
+  function press(k){
+    var last = buf.slice(-1);
+    if (k === '⌫'){ buf = buf.slice(0, -1); }
+    else if (k === '-'){
+      var seg = buf.split(',').pop();
+      if (/\d$/.test(buf) && seg.indexOf('-') < 0) buf += '-';
+    }
+    else if (k === ','){ if (/\d$/.test(buf)) buf += ','; }
+    else if (buf.length < 40){ buf += k; }
+    updDisp();
+  }
+
+  function commit(){
+    $('txt').blur();
+    draft[side].push(mode === 'a' ? { d: dir, r: abuf, t: 'a' } : { d: dir, r: buf, t: 'n' });
+  }
+
+  $('bMore').onclick = function(){ commit(); startRow(); };
+  $('bEnough').onclick = function(){
+    commit();
+    if (side === 'A'){ side = 'B'; startRow(); }
+    else { saved = draft; store(saved); showView(); }
+  };
+
+  showView();
+})();
+</script>
+</body>
+</html>
