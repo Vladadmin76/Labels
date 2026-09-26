@@ -36,7 +36,8 @@ button:focus-visible{outline:3px solid var(--a);outline-offset:2px}
   display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bg)}
 .cols{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr}
 .col{display:flex;flex-direction:column;min-height:0;min-width:0;color:var(--a)}
-.col.B{color:var(--b);border-left:2px solid var(--line)}
+.col.B{color:var(--b)}
+.col.A{border-left:2px solid var(--line)}
 .head{height:20%;min-height:44px;container-type:size;display:flex;align-items:center;justify-content:center}
 .circ{width:86cqh;height:86cqh;border:max(3px,5cqh) solid currentColor;border-radius:50%;
   display:grid;place-items:center;font-size:60cqh;line-height:1}
@@ -195,7 +196,7 @@ body.rot #rotOff{display:block}
       return;
     }
     var html = '<button id="rotOff">Обычно</button><div class="cols">';
-    ['A','B'].forEach(function(s){
+    ['B','A'].forEach(function(s){
       html += '<div class="col ' + s + '"><div class="head"><span class="circ num">' + s + '</span></div><div class="rows">';
       (saved[s] || []).forEach(function(row){
         var p = items(row), n, inner;
