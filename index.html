@@ -341,8 +341,11 @@ body.rot #rotOff{display:block}
     var d = $('disp');
     if (!buf){ d.textContent = 'например 1–32'; d.classList.add('ph'); }
     else { d.textContent = buf.replace(/-/g, '–').replace(/,/g, ', '); d.classList.remove('ph'); }
-    var ok = mode === 'a' ? (!abuf || AVALID.test(abuf)) : (!buf || VALID.test(buf));
-    $('bMore').disabled = !ok; $('bEnough').disabled = !ok;
+    var v = mode === 'a' ? abuf : buf;
+    var ok = mode === 'a' ? AVALID.test(abuf) : VALID.test(buf);
+    /* Пустой ряд (только стрелка) — единственный на конце */
+    $('bMore').disabled = !ok;
+    $('bEnough').disabled = !(ok || (!v && !draft[side].length));
   }
 
   var keys = ['1','2','3','⌫','4','5','6','-','7','8','9',',','0'];
