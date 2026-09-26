@@ -47,6 +47,7 @@ button:focus-visible{outline:3px solid var(--a);outline-offset:2px}
 .row.n2 .nums{font-size:min(25cqh,16cqw)}
 .row.n3 .nums{font-size:min(17cqh,12cqw)}
 .row .arrow{width:80cqw;height:20cqh;min-height:14px;margin-top:5cqh}
+.row.arr .arrow{height:min(50cqh,25cqw);margin-top:0}
 
 .arrow{display:flex;align-items:center;color:inherit}
 .arrow i{flex:1;height:46%;background:currentColor;border-radius:4px 0 0 4px}
@@ -198,7 +199,9 @@ body.rot #rotOff{display:block}
       html += '<div class="col ' + s + '"><div class="head"><span class="circ num">' + s + '</span></div><div class="rows">';
       (saved[s] || []).forEach(function(row){
         var p = items(row), n, inner;
-        if (row.t === 'a'){
+        if (!p.length){
+          n = 'arr'; inner = '';
+        } else if (row.t === 'a'){
           n = p.length <= 1 ? 'a1' : p.length === 2 ? 'a2' : p.length <= 4 ? 'a4' : 'a6';
           inner = p.length >= 3
             ? '<div class="nums num grid">' + p.map(function(x){ return '<span>' + x + '</span>'; }).join('') + '</div>'
@@ -338,7 +341,7 @@ body.rot #rotOff{display:block}
     var d = $('disp');
     if (!buf){ d.textContent = 'например 1–32'; d.classList.add('ph'); }
     else { d.textContent = buf.replace(/-/g, '–').replace(/,/g, ', '); d.classList.remove('ph'); }
-    var ok = mode === 'a' ? AVALID.test(abuf) : VALID.test(buf);
+    var ok = mode === 'a' ? (!abuf || AVALID.test(abuf)) : (!buf || VALID.test(buf));
     $('bMore').disabled = !ok; $('bEnough').disabled = !ok;
   }
 
