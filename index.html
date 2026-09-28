@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#131b22">
+<meta name="apple-mobile-web-app-title" content="Схема лейб">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>Схема лейб</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +17,7 @@
 <style>
 :root{
   --bg:#131b22; --panel:#1b252e; --line:#33434f; --ink:#f1f5f8; --dim:#8da1ae;
-  --a:#8fd0ff; --b:#ffd27a; --key:#222e38; --keyOn:#2d3b47;
+  --a:#8fd0ff; --b:#ffd27a; --key:#222e38; --keyOn:#2d3b47; --red:#ff7a7a;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
@@ -66,15 +71,40 @@ body.rot #board{position:fixed;top:0;margin:0;border-radius:0;border:0;z-index:1
 body.rot #rotOff{display:block}
 
 .bar{display:flex;gap:10px;padding:0 10px 10px}
-.btn{flex:1;min-height:58px;border-radius:14px;font-size:18px;font-weight:500;background:var(--panel);border:1px solid var(--line)}
+.btn{flex:1;min-width:0;min-height:58px;border-radius:14px;font-size:17px;font-weight:500;background:var(--panel);border:1px solid var(--line);padding:0 6px}
+#view .bar .btn{font-size:min(16px,4vw);padding:0 4px}
+#btnRot{flex:1.5}
 .btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
 .btn:active{transform:scale(.98)}
 .btn:disabled{opacity:.35}
 @media (orientation:landscape){
   #btnRot{display:none}
-  .bar{padding:0 10px 8px}
-  .bar .btn{min-height:44px;flex:0 0 200px;margin-left:auto}
+  .bar{padding:0 10px 8px;justify-content:flex-end}
+  .bar .btn{min-height:44px;flex:0 0 200px}
 }
+
+/* ---------- История ---------- */
+#hist{padding:10px 10px 0;gap:8px}
+#hist .wtop{padding:0 4px}
+.htitle{font-size:19px;font-weight:500}
+#hgrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;
+  grid-template-columns:1fr 1fr;gap:10px;align-content:start}
+#hgrid .empty{grid-column:span 2}
+.thumb{display:flex;flex-direction:column;min-width:0;border:2px solid var(--line);border-radius:12px;overflow:hidden;
+  background:var(--bg);touch-action:pan-y;-webkit-touch-callout:none;cursor:pointer}
+.thumb.hold{border-color:var(--red)}
+.thumb .row{border-top-width:1px}
+.thumb .col.A{border-left-width:1px}
+#hist .bar{padding:0 0 10px}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:none;align-items:flex-end;
+  padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}
+.sheet.on{display:flex}
+.sheet .box{flex:1;display:flex;flex-direction:column;gap:10px;max-width:520px;margin:0 auto}
+.btn.danger{color:var(--red);border-color:var(--red)}
+#toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;
+  background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 16px;font-size:16px;font-weight:500;
+  opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap}
+#toast.on{opacity:1}
 
 /* ---------- Мастер ---------- */
 #wiz{overflow:auto;padding:10px 14px 14px;gap:12px}
@@ -126,8 +156,22 @@ body.rot #rotOff{display:block}
     <div id="board"></div>
     <div class="bar">
       <button id="btnRot" class="btn">Горизонтально</button>
+      <button id="btnMid" class="btn">Сохранить</button>
       <button id="btnNew" class="btn primary">Новая</button>
     </div>
+  </section>
+
+  <section id="hist" class="screen">
+    <div class="wtop">
+      <button id="hBack" class="ghost">‹ Назад</button>
+      <span class="htitle">История</span>
+    </div>
+    <div id="hgrid"></div>
+    <div class="bar">
+      <button id="btnExp" class="btn">Экспорт</button>
+      <button id="btnImp" class="btn">Импорт</button>
+    </div>
+    <input id="impFile" type="file" accept=".json,application/json,text/plain" style="display:none">
   </section>
 
   <section id="wiz" class="screen">
@@ -165,15 +209,42 @@ body.rot #rotOff{display:block}
   </section>
 </div>
 
+<div id="sheet" class="sheet">
+  <div class="box">
+    <button id="shDel" class="btn danger">Удалить</button>
+    <button id="shCancel" class="btn">Отмена</button>
+  </div>
+</div>
+<div id="toast"></div>
+
 <script>
 (function(){
-  var KEY = 'labelScheme.v1';
-  var saved = load();
+  var KEY = 'labelScheme.v1', HKEY = 'labelScheme.history.v1';
+  var VALID = /^\d+(-\d+)?(,\d+(-\d+)?)*$/;
+  var AVALID = /^[A-Z](?:[A-Z-]*[A-Z])?(?:,[A-Z](?:[A-Z-]*[A-Z])?){0,5}$/;
+  var saved = norm(load(KEY));
+  var hist = (function(h){ return Array.isArray(h) ? h.map(norm).filter(Boolean) : []; })(load(HKEY));
   var draft = null, side = 'A', dir = null, buf = '', abuf = '', mode = 'n', rot = false;
   var $ = function(id){ return document.getElementById(id); };
 
-  function load(){ try{ var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
-  function store(d){ try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){} }
+  function load(k){ try{ var s = localStorage.getItem(k); return s ? JSON.parse(s) : null; }catch(e){ return null; } }
+  function store(k, d){ try{ localStorage.setItem(k, JSON.stringify(d)); }catch(e){} }
+
+  /* Проверка и приведение схемы к виду {A:[{d,r,t}], B:[...]}; null — если схема битая */
+  function norm(x){
+    if (!x || !Array.isArray(x.A) || !Array.isArray(x.B)) return null;
+    var out = {}, ok = true;
+    ['A','B'].forEach(function(s){
+      out[s] = x[s].map(function(row){
+        var t = row && row.t === 'a' ? 'a' : 'n', r = row && typeof row.r === 'string' ? row.r : '';
+        if (!row || (row.d !== 'l' && row.d !== 'r') || (r && !(t === 'a' ? AVALID : VALID).test(r))) ok = false;
+        return { d: row && row.d, r: r, t: t };
+      });
+    });
+    return ok ? out : null;
+  }
+  function sig(x){ return JSON.stringify(x); }
+  function inHist(x){ var k = sig(x); return hist.some(function(h){ return sig(h) === k; }); }
 
   function arrow(d){
     var pts = d === 'r' ? '0,0 10,5 0,10' : '10,0 0,5 10,10';
@@ -189,16 +260,11 @@ body.rot #rotOff{display:block}
   }
 
   /* ---------- Схема ---------- */
-  function renderBoard(){
-    var b = $('board');
-    if (!saved){
-      b.innerHTML = '<div class="empty">Схемы пока нет.<br>Нажмите «Новая».</div>';
-      return;
-    }
-    var html = '<button id="rotOff">Обычно</button><div class="cols">';
+  function colsHTML(sch){
+    var html = '<div class="cols">';
     ['B','A'].forEach(function(s){
       html += '<div class="col ' + s + '"><div class="head"><span class="circ num">' + s + '</span></div><div class="rows">';
-      (saved[s] || []).forEach(function(row){
+      (sch[s] || []).forEach(function(row){
         var p = items(row), n, inner;
         if (!p.length){
           n = 'arr'; inner = '';
@@ -215,14 +281,22 @@ body.rot #rotOff{display:block}
       });
       html += '</div></div>';
     });
-    html += '</div>';
-    b.innerHTML = html;
+    return html + '</div>';
+  }
+  function renderBoard(){
+    var b = $('board');
+    if (!saved){
+      b.innerHTML = '<div class="empty">Схемы пока нет.<br>Нажмите «Новая».</div>';
+      return;
+    }
+    b.innerHTML = '<button id="rotOff">Обычно</button>' + colsHTML(saved);
     $('rotOff').onclick = function(){ rot = false; applyRot(); };
   }
 
   /* Автоподгонка: для каждого ряда — самый крупный шрифт, который помещается */
-  function fitAll(){
-    document.querySelectorAll('#board .row').forEach(function(row){
+  function fitAll(){ fitRows('#board .row'); fitRows('#hgrid .row'); }
+  function fitRows(sel){
+    document.querySelectorAll(sel).forEach(function(row){
       var nums = row.querySelector('.nums'), arr = row.querySelector('.arrow');
       if (!nums) return;
       var arrH = arr ? arr.offsetHeight + (parseFloat(getComputedStyle(arr).marginTop) || 0) : 0;
@@ -253,24 +327,140 @@ body.rot #rotOff{display:block}
     fitAll();
   }
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
-  window.addEventListener('resize', applyRot);
+  window.addEventListener('resize', function(){ layoutHist(); applyRot(); });
   window.addEventListener('orientationchange', function(){ setTimeout(applyRot, 200); });
 
+  function screen(id){
+    ['view','wiz','hist'].forEach(function(s){ $(s).classList.toggle('on', s === id); });
+  }
   function showView(){
-    $('wiz').classList.remove('on');
-    $('view').classList.add('on');
+    screen('view');
     renderBoard(); applyRot();
     $('btnRot').disabled = !saved;
+    var save = !!saved && !inHist(saved);
+    $('btnMid').textContent = save ? 'Сохранить' : 'История';
+    $('btnMid').disabled = !save && !hist.length;
   }
+
+  $('btnMid').onclick = function(){
+    if (saved && !inHist(saved)){
+      hist.unshift(saved); store(HKEY, hist);
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
+      toast('Сохранено');
+      showView();
+    } else showHist();
+  };
 
   $('btnRot').onclick = function(){ rot = true; applyRot(); };
   $('btnNew').onclick = function(){
     draft = { A: [], B: [] }; side = 'A'; mode = 'n';
-    $('view').classList.remove('on');
-    $('wiz').classList.add('on');
+    screen('wiz');
     startRow();
   };
   $('wCancel').onclick = showView;
+
+  /* ---------- История ---------- */
+  var tt = null;
+  function toast(msg){
+    var t = $('toast'); t.textContent = msg; t.classList.add('on');
+    clearTimeout(tt); tt = setTimeout(function(){ t.classList.remove('on'); }, 1800);
+  }
+
+  function showHist(){
+    rot = false; applyRot();
+    screen('hist');
+    renderHist();
+  }
+  $('hBack').onclick = showView;
+
+  function renderHist(){
+    var g = $('hgrid');
+    g.innerHTML = hist.length
+      ? hist.map(function(h, i){ return '<div class="thumb" data-i="' + i + '">' + colsHTML(h) + '</div>'; }).join('')
+      : '<div class="empty">История пуста.</div>';
+    $('btnExp').disabled = !hist.length;
+    g.scrollTop = 0;
+    layoutHist();
+  }
+  /* 4 миниатюры (2×2) на видимую область */
+  function layoutHist(){
+    var g = $('hgrid');
+    if (!$('hist').classList.contains('on')) return;
+    g.style.gridAutoRows = Math.max(120, (g.clientHeight - 10) / 2) + 'px';
+    fitRows('#hgrid .row');
+  }
+
+  /* Нажатие — открыть, долгое нажатие — удалить */
+  var hold = null, held = false, sx = 0, sy = 0, delIdx = -1;
+  $('hgrid').addEventListener('pointerdown', function(e){
+    var th = e.target.closest('.thumb'); if (!th) return;
+    held = false; sx = e.clientX; sy = e.clientY;
+    clearTimeout(hold);
+    hold = setTimeout(function(){
+      held = true; th.classList.add('hold');
+      delIdx = +th.dataset.i; $('sheet').classList.add('on');
+    }, 550);
+  });
+  function stopHold(){ clearTimeout(hold); }
+  $('hgrid').addEventListener('pointermove', function(e){
+    if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) stopHold();
+  });
+  $('hgrid').addEventListener('pointerup', stopHold);
+  $('hgrid').addEventListener('pointercancel', stopHold);
+  $('hgrid').addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  $('hgrid').addEventListener('click', function(e){
+    var th = e.target.closest('.thumb'); if (!th || held) return;
+    saved = hist[+th.dataset.i]; store(KEY, saved);
+    showView();
+  });
+  function closeSheet(){
+    $('sheet').classList.remove('on');
+    document.querySelectorAll('.thumb.hold').forEach(function(t){ t.classList.remove('hold'); });
+  }
+  $('shCancel').onclick = closeSheet;
+  $('sheet').addEventListener('click', function(e){ if (e.target === this) closeSheet(); });
+  $('shDel').onclick = function(){
+    if (delIdx >= 0){ hist.splice(delIdx, 1); store(HKEY, hist); }
+    closeSheet(); renderHist();
+  };
+
+  /* Экспорт / импорт */
+  $('btnExp').onclick = function(){
+    var d = new Date(), pad2 = function(n){ return (n < 10 ? '0' : '') + n; };
+    var name = 'labels-' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + '.json';
+    var text = JSON.stringify({ app: 'labelScheme', v: 1, history: hist });
+    var file = null;
+    try{ file = new File([text], name, { type: 'application/json' }); }catch(e){}
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })){
+      navigator.share({ files: [file] }).catch(function(){});
+      return;
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  };
+  $('btnImp').onclick = function(){ $('impFile').value = ''; $('impFile').click(); };
+  $('impFile').addEventListener('change', function(){
+    var f = this.files && this.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function(){
+      var data;
+      try{ data = JSON.parse(rd.result); }catch(e){ toast('Не удалось прочитать файл'); return; }
+      var list = Array.isArray(data) ? data : data && Array.isArray(data.history) ? data.history : [data];
+      var added = 0, bad = 0;
+      list.forEach(function(x){
+        var n = norm(x);
+        if (!n){ bad++; return; }
+        if (!inHist(n)){ hist.push(n); added++; }
+      });
+      if (added) store(HKEY, hist);
+      toast(added ? 'Добавлено: ' + added : bad ? 'В файле нет схем' : 'Всё уже есть в истории');
+      renderHist();
+    };
+    rd.readAsText(f);
+  });
 
   /* ---------- Мастер ---------- */
   document.querySelectorAll('.pick button').forEach(function(btn){
@@ -336,8 +526,6 @@ body.rot #rotOff{display:block}
   });
   $('chgDir').onclick = function(){ dir = dir === 'r' ? 'l' : 'r'; $('chgDir').innerHTML = arrow(dir); };
 
-  var VALID = /^\d+(-\d+)?(,\d+(-\d+)?)*$/;
-  var AVALID = /^[A-Z](?:[A-Z-]*[A-Z])?(?:,[A-Z](?:[A-Z-]*[A-Z])?){0,5}$/;
   function updDisp(){
     var d = $('disp');
     if (!buf){ d.textContent = 'например 1–32'; d.classList.add('ph'); }
@@ -380,7 +568,7 @@ body.rot #rotOff{display:block}
   $('bEnough').onclick = function(){
     commit();
     if (side === 'A'){ side = 'B'; startRow(); }
-    else { saved = draft; store(saved); showView(); }
+    else { saved = draft; store(KEY, saved); showView(); }
   };
 
   showView();
