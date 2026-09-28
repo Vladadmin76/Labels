@@ -84,9 +84,7 @@ body.rot #rotOff{display:block}
 }
 
 /* ---------- История ---------- */
-#hist{padding:10px 10px 0;gap:8px}
-#hist .wtop{padding:0 4px}
-.htitle{font-size:19px;font-weight:500}
+#hist{padding:10px 10px 0;gap:10px}
 #hgrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;
   grid-template-columns:1fr 1fr;gap:10px;align-content:start}
 #hgrid .empty{grid-column:span 2}
@@ -162,13 +160,10 @@ body.rot #rotOff{display:block}
   </section>
 
   <section id="hist" class="screen">
-    <div class="wtop">
-      <button id="hBack" class="ghost">‹ Назад</button>
-      <span class="htitle">История</span>
-    </div>
     <div id="hgrid"></div>
     <div class="bar">
       <button id="btnExp" class="btn">Экспорт</button>
+      <button id="hBack" class="btn">Назад</button>
       <button id="btnImp" class="btn">Импорт</button>
     </div>
     <input id="impFile" type="file" accept=".json,application/json,text/plain" style="display:none">
@@ -332,6 +327,7 @@ body.rot #rotOff{display:block}
 
   function screen(id){
     ['view','wiz','hist'].forEach(function(s){ $(s).classList.toggle('on', s === id); });
+    window.scrollTo(0, 0);
   }
   function showView(){
     screen('view');
