@@ -81,6 +81,8 @@ body.rot #rotOff{display:block}
   #btnRot{display:none}
   .bar{padding:0 10px 8px;justify-content:flex-end}
   .bar .btn{min-height:44px;flex:0 0 200px}
+  #hist #hgrid{grid-template-columns:repeat(4,1fr)}
+  #hist #hgrid .empty{grid-column:span 4}
 }
 
 /* ---------- История ---------- */
@@ -378,11 +380,12 @@ body.rot #rotOff{display:block}
     g.scrollTop = 0;
     layoutHist();
   }
-  /* 4 миниатюры (2×2) на видимую область */
+  /* 4 миниатюры на видимую область: 2×2, а горизонтально — 4 в ряд */
   function layoutHist(){
     var g = $('hgrid');
     if (!$('hist').classList.contains('on')) return;
-    g.style.gridAutoRows = Math.max(120, (g.clientHeight - 10) / 2) + 'px';
+    var land = window.innerWidth > window.innerHeight;
+    g.style.gridAutoRows = Math.max(120, land ? g.clientHeight : (g.clientHeight - 10) / 2) + 'px';
     fitRows('#hgrid .row');
   }
 
