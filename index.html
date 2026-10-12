@@ -62,6 +62,7 @@ button:focus-visible{outline:3px solid var(--a);outline-offset:2px}
 .arrow svg{height:100%;aspect-ratio:1.05;fill:currentColor;flex:none;margin-left:-1px}
 .arrow.l svg{margin-left:0;margin-right:-1px}
 
+.empty .lnk{display:inline-block;margin-top:14px;padding:12px 18px;font-size:20px;font-weight:500;color:var(--a);text-decoration:underline}
 .empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--dim);padding:24px;font-size:18px;line-height:1.5}
 
 #rotOff{display:none;position:absolute;top:10px;right:10px;z-index:2;background:var(--panel);
@@ -284,7 +285,8 @@ body.rot #rotOff{display:block}
   function renderBoard(){
     var b = $('board');
     if (!saved){
-      b.innerHTML = '<div class="empty">Схемы пока нет.<br>Нажмите «Новая».</div>';
+      b.innerHTML = '<div class="empty"><div>Схемы пока нет.<br>Нажмите «Новая».<br><button id="emptyImp" class="lnk">Импорт</button></div></div>';
+      $('emptyImp').onclick = pickImport;
       return;
     }
     b.innerHTML = '<button id="rotOff">Обычно</button>' + colsHTML(saved);
@@ -458,7 +460,8 @@ body.rot #rotOff{display:block}
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
   };
-  $('btnImp').onclick = function(){ $('impFile').value = ''; $('impFile').click(); };
+  function pickImport(){ $('impFile').value = ''; $('impFile').click(); }
+  $('btnImp').onclick = pickImport;
   $('impFile').addEventListener('change', function(){
     var f = this.files && this.files[0]; if (!f) return;
     var rd = new FileReader();
@@ -474,7 +477,7 @@ body.rot #rotOff{display:block}
       });
       if (added) store(HKEY, hist);
       toast(added ? 'Добавлено: ' + added : bad ? 'В файле нет схем' : 'Всё уже есть в истории');
-      renderHist();
+      if ($('hist').classList.contains('on')) renderHist(); else showHist();
     };
     rd.readAsText(f);
   });
