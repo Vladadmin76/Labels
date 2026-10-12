@@ -38,11 +38,11 @@ button:focus-visible{outline:3px solid var(--a);outline-offset:2px}
 
 /* ---------- Схема ---------- */
 #board{flex:1;min-height:0;margin:10px;border:2px solid var(--line);border-radius:14px;
-  display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bg)}
+  display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bg);touch-action:none}
 .cols{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr}
 .col{display:flex;flex-direction:column;min-height:0;min-width:0;color:var(--a)}
 .col.B{color:var(--b)}
-.col.A{border-left:2px solid var(--line)}
+.col+.col{border-left:2px solid var(--line)}
 .head{height:20%;min-height:44px;container-type:size;display:flex;align-items:center;justify-content:center}
 .circ{width:86cqh;height:86cqh;border:max(3px,5cqh) solid currentColor;border-radius:50%;
   display:grid;place-items:center;font-size:60cqh;line-height:1}
@@ -94,7 +94,7 @@ body.rot #rotOff{display:block}
   background:var(--bg);touch-action:pan-y;-webkit-touch-callout:none;cursor:pointer}
 .thumb.hold{border-color:var(--red)}
 .thumb .row{border-top-width:1px}
-.thumb .col.A{border-left-width:1px}
+.thumb .col+.col{border-left-width:1px}
 #hist .bar{padding:0 0 10px}
 .sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55);display:none;align-items:flex-end;
   padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}
@@ -238,6 +238,7 @@ body.rot #rotOff{display:block}
         return { d: row && row.d, r: r, t: t };
       });
     });
+    out.o = x.o === 'AB' ? 'AB' : 'BA';
     return ok ? out : null;
   }
   function sig(x){ return JSON.stringify(x); }
@@ -259,7 +260,7 @@ body.rot #rotOff{display:block}
   /* ---------- Схема ---------- */
   function colsHTML(sch){
     var html = '<div class="cols">';
-    ['B','A'].forEach(function(s){
+    (sch.o === 'AB' ? ['A','B'] : ['B','A']).forEach(function(s){
       html += '<div class="col ' + s + '"><div class="head"><span class="circ num">' + s + '</span></div><div class="rows">';
       (sch[s] || []).forEach(function(row){
         var p = items(row), n, inner;
@@ -310,6 +311,23 @@ body.rot #rotOff{display:block}
     });
   }
 
+  /* Свайп по схеме: колонки A и B меняются местами (порядок хранится в схеме) */
+  var bx = 0, by = 0, bt = false;
+  $('board').addEventListener('pointerdown', function(e){
+    bt = !!saved && !e.target.closest('button'); bx = e.clientX; by = e.clientY;
+  });
+  $('board').addEventListener('pointerup', function(e){
+    if (!bt) return; bt = false;
+    var dx = e.clientX - bx, dy = e.clientY - by;
+    var along = document.body.classList.contains('rot') ? dy : dx;
+    var across = document.body.classList.contains('rot') ? dx : dy;
+    if (Math.abs(along) < 50 || Math.abs(along) < 1.5 * Math.abs(across)) return;
+    saved = Object.assign({}, saved, { o: saved.o === 'AB' ? 'BA' : 'AB' });
+    store(KEY, saved);
+    showView();
+  });
+  $('board').addEventListener('pointercancel', function(){ bt = false; });
+
   function applyRot(){
     var b = $('board');
     var on = rot && window.innerWidth < window.innerHeight && !!saved;
@@ -351,7 +369,7 @@ body.rot #rotOff{display:block}
 
   $('btnRot').onclick = function(){ rot = true; applyRot(); };
   $('btnNew').onclick = function(){
-    draft = { A: [], B: [] }; side = 'A'; mode = 'n';
+    draft = { A: [], B: [], o: 'BA' }; side = 'A'; mode = 'n';
     screen('wiz');
     startRow();
   };
