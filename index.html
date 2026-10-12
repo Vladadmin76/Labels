@@ -240,10 +240,29 @@ body.rot #rotOff{display:block}
       });
     });
     out.o = x.o === 'AB' ? 'AB' : 'BA';
+    if (typeof x.id === 'string' && /^[\w-]{1,40}$/.test(x.id)) out.id = x.id;
     return ok ? out : null;
   }
-  function sig(x){ return JSON.stringify(x); }
-  function inHist(x){ var k = sig(x); return hist.some(function(h){ return sig(h) === k; }); }
+  /* sig — ряды и порядок колонок; ckey — только ряды (зеркальные варианты считаются одной схемой) */
+  function sig(x){ return JSON.stringify([x.A, x.B, x.o]); }
+  function ckey(x){ return JSON.stringify([x.A, x.B]); }
+  function newId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function histIdx(id){ for (var i = 0; i < hist.length; i++) if (id && hist[i].id === id) return i; return -1; }
+  /* Схема уже сохранена, если запись с её меткой совпадает с ней; для схемы без метки — если есть точно такая же */
+  function inHist(x){
+    var i = histIdx(x.id);
+    if (i >= 0) return sig(hist[i]) === sig(x);
+    return !x.id && hist.some(function(h){ return sig(h) === sig(x); });
+  }
+  (function(){
+    var ch = false;
+    hist.forEach(function(h){ if (!h.id){ h.id = newId(); ch = true; } });
+    if (ch) store(HKEY, hist);
+    if (saved && !saved.id){
+      var m = hist.filter(function(h){ return sig(h) === sig(saved); })[0];
+      if (m){ saved.id = m.id; store(KEY, saved); }
+    }
+  })();
 
   function arrow(d){
     var pts = d === 'r' ? '0,0 10,5 0,10' : '10,0 0,5 10,10';
@@ -362,7 +381,10 @@ body.rot #rotOff{display:block}
 
   $('btnMid').onclick = function(){
     if (saved && !inHist(saved)){
-      hist.unshift(saved); store(HKEY, hist);
+      if (!saved.id) saved.id = newId();
+      var oi = histIdx(saved.id);
+      if (oi >= 0) hist.splice(oi, 1);
+      hist.unshift(saved); store(HKEY, hist); store(KEY, saved);
       if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
       toast('Сохранено');
       showView();
@@ -473,7 +495,10 @@ body.rot #rotOff{display:block}
       list.forEach(function(x){
         var n = norm(x);
         if (!n){ bad++; return; }
-        if (!inHist(n)){ hist.push(n); added++; }
+        var k = ckey(n);
+        if (hist.some(function(h){ return ckey(h) === k; })) return;
+        if (!n.id || histIdx(n.id) >= 0) n.id = newId();
+        hist.push(n); added++;
       });
       if (added) store(HKEY, hist);
       toast(added ? 'Добавлено: ' + added : bad ? 'В файле нет схем' : 'Всё уже есть в истории');
